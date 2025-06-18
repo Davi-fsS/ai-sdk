@@ -1,45 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from '@ai-sdk/openai';
-import { generateText, tool } from 'ai';
+import { generateText, streamText, tool } from 'ai';
 import z from "zod";
 
-export async function GET(request: NextRequest){
-    const result = await generateText({
+export async function POST(request: NextRequest){
+    const { messages } = await request.json()
+
+    const result = await streamText({
         model: openai("gpt-4o"),
         tools: {
-            profileAndUrls: tool({
-                description: 'Essa ferramenta serve para buscar do perfil de um usuário do GitHub ou acessar URLs da API para outras informações de um usuário como lista de organizações, repositórios, eventos, seguidores, seguindo, etc...',
+            localizationData: tool({
+                description: "Essa ferramenta serve para buscar dados geográficos de uma cidade, como as cordenadas, nome do munícipo, estado, região e país.",
                 parameters: z.object({
-                    username: z.string().describe('Username do usuário no GitHub'),
+                    city: z.string().describe("nome da cidade")
                 }),
-                execute: async ({ username }) => {
-                    const response = await fetch(`https://api.github.com/users/${username}`)
+                execute: async({ city }) => {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${city}&format=jsonv2`)
+
                     const data = await response.json()
       
                     return JSON.stringify(data)
                 }
             }),
-      
-            fetchHTTP: tool({
-                description: "Essa ferramenta serve para realizar uma requisição HTTP em uma URL especificada e acessar sua resposta",
+            getWeather: tool({
+                description: "Essa ferramenta serve para inferir informações climáticas dado coordenadas",
                 parameters: z.object({
-                    url: z.string().describe('URL a ser requisitada'),
+                    latitude: z.number().describe("latitude da cidade"),
+                    longitude: z.number().describe("longitude da cidade")
                 }),
-                execute: async ({ url }) => {
-                    const response = await fetch(url)
-                    const data = await response.text()
+                execute: async ({ latitude, longitude }) => {
+                    const API_KEY = "ecf32be23a189cb0b86bd0ab11e82cf3"
+                    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}`)
+                    const data = await response.json()
         
-                    return data
+                    return JSON.stringify(data)
                 }
             })
         },
-        prompt: 'Me dê uma lista de usuários que o usuário Davi-fsS segue no GitHub?',
+        messages,
         maxSteps: 5,
-    
+        system: `
+            Sempre responda em markdown sem aspas no início e no fim da sua mensagem
+        `,
+
         onStepFinish({ toolResults }) {
             console.log(toolResults)
         }
     })
 
-    return NextResponse.json({ message: result.text })
+    console.log("resultado: ", result.toDataStreamResponse())
+    return result.toDataStreamResponse()
 }
