@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { MessageInput } from "./message-input";
 import { Markdown } from "./markdown";
 import { useChat } from "@ai-sdk/react";
-import { stat } from "fs";
+import { ToolLoading } from "./tool-loading";
 
 export function Chat() {
   const { messages, input, handleInputChange, handleSubmit, status } = useChat({
@@ -61,9 +61,28 @@ export function Chat() {
                   }
 
                   <div className="flex flex-col gap-4">
-                    <div className="flex-1 prose prose-invert prose-zinc prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">
-                      <Markdown>{item.content}</Markdown>
-                    </div>
+                    {
+                      item.content && (
+                        <div className="flex-1 prose prose-invert prose-zinc prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">
+                          <Markdown>{item.content}</Markdown>
+                        </div>
+                      )
+                    }
+
+                    {item.parts.map(part => {
+                      if (part.type !== "tool-invocation"){
+                        return null
+                      }
+
+                      if (part.toolInvocation.state === "call"){
+                        switch(part.toolInvocation.toolName){
+                          case "localization":
+                            return <ToolLoading key={part.toolInvocation.toolCallId} text="Carregando informações Nominatin"/>
+                          case "weather":
+                            return <ToolLoading key={part.toolInvocation.toolCallId} text="Carregando informações Open Weather"/>
+                        }
+                      }
+                    })}
                   </div>
                 </div>
               )
