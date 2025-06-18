@@ -11,7 +11,7 @@ export const weather = tool({
     execute: async ({ latitude, longitude }) => {
         await setTimeout(2000);
 
-        const API_KEY = "ecf32be23a189cb0b86bd0ab11e82cf3"
+        const API_KEY = process.env.WEATHER_KEY
         const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}`)
         const data = await response.json()
 
